@@ -14,7 +14,8 @@ MjpegStreamer::MjpegStreamer(const async_web_server_cpp::HttpRequest &request,
       "Server", "web_video_server").header("Cache-Control",
                                            "no-cache, no-store, must-revalidate, pre-check=0, post-check=0, max-age=0").header(
       "Pragma", "no-cache").header("Content-type", "multipart/x-mixed-replace;boundary=--boundarydonotcross ").header(
-      "Access-Control-Allow-Origin", "*").write(connection);
+      "Access-Control-Allow-Origin", "*").header("Transfer-Encoding","chunked").write(connection);
+  connection->write("15\r\n"); // size of hardcoded "--boundarydonotcross"	
   connection->write("--boundarydonotcross \r\n");
 }
 
@@ -34,8 +35,21 @@ void MjpegStreamer::sendImage(const cv::Mat &img, const ros::Time &time)
   headers->push_back(async_web_server_cpp::HttpHeader("Content-type", "image/jpeg"));
   headers->push_back(async_web_server_cpp::HttpHeader("X-Timestamp", stamp));
   headers->push_back(
-      async_web_server_cpp::HttpHeader("Content-Length", boost::lexical_cast<std::string>(encoded_buffer.size())));
-  connection_->write(async_web_server_cpp::HttpReply::to_buffers(*headers), headers);
+     async_web_server_cpp::HttpHeader("Content-Length", boost::lexical_cast<std::string>(encoded_buffer.size())));
+  
+  std::vector<boost::asio::const_buffer> encoded_header = async_web_server_cpp::HttpReply::to_buffers(*headers); 
+  std::vector<boost::asio::const_buffer>::iterator it;
+  int length = 0;
+  for(it=encoded_header.begin(); it !=encoded_header.end();it++){
+    length+=buffer_size(*it);
+  }
+  length += 23; // 23 is the size of hardcodded "\r\n --boundarydonotcross"
+  length += encoded_buffer.size();
+  std::stringstream ss;
+  ss << std::hex <<length;
+  ss << "\r\n";
+  connection_->write(ss.str());
+  connection_->write(encoded_header, headers);
   connection_->write_and_clear(encoded_buffer);
   connection_->write("\r\n--boundarydonotcross \r\n");
 }
