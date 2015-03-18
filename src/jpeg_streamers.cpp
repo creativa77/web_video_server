@@ -15,7 +15,7 @@ MjpegStreamer::MjpegStreamer(const async_web_server_cpp::HttpRequest &request,
                                            "no-cache, no-store, must-revalidate, pre-check=0, post-check=0, max-age=0").header(
       "Pragma", "no-cache").header("Content-type", "multipart/x-mixed-replace;boundary=--boundarydonotcross ").header(
       "Access-Control-Allow-Origin", "*").header("Transfer-Encoding","chunked").write(connection);
-  connection->write("15\r\n");	
+  connection->write("15\r\n"); // size of hardcoded "--boundarydonotcross"	
   connection->write("--boundarydonotcross \r\n");
 }
 
@@ -43,7 +43,7 @@ void MjpegStreamer::sendImage(const cv::Mat &img, const ros::Time &time)
   for(it=encoded_header.begin(); it !=encoded_header.end();it++){
     length+=buffer_size(*it);
   }
-  length += 23;
+  length += 23; // 23 is the size of hardcodded "\r\n --boundarydonotcross"
   length += encoded_buffer.size();
   std::stringstream ss;
   ss << std::hex <<length;
